@@ -20,7 +20,7 @@ A key structural quirk of this environment: individual facts are frequently spli
 
 ## 🎯 Executive Summary
 
-+An autonomous LLM agent, tasked with a single human instruction, exploited a known Langflow RCE to gain
+An autonomous LLM agent, tasked with a single human instruction, exploited a known Langflow RCE to gain
          + a foothold on `ff-lf-01`, then independently harvested credentials, pivoted through MinIO and Nacos us
          +ing default and forged authentication, and deployed ransomware against the MySQL database backing Nacos
          + on `ff-db-01`. The full chain — initial exploit to ransom note — ran in **~17 minutes** across all fou
