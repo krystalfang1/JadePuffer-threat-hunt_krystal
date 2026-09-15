@@ -19,13 +19,8 @@ A key structural quirk of this environment: individual facts are frequently spli
 ---
 
 ## 🎯 Executive Summary
-
-An autonomous LLM agent, tasked with a single human instruction, exploited a known Langflow RCE to gain
-         + a foothold on `ff-lf-01`, then independently harvested credentials, pivoted through MinIO and Nacos us
-         +ing default and forged authentication, and deployed ransomware against the MySQL database backing Nacos
-         + on `ff-db-01`. The full chain — initial exploit to ransom note — ran in **~17 minutes** across all fou
-         +r Flowforge hosts, with no human input after the initial tasking prompt and clear evidence of real-time
-         + self-correction, consistent with machine-driven rather than human-operated execution.  
+ 
+ An autonomous LLM agent, tasked with a single human instruction, exploited a known Langflow RCE to gain a foothold on ff-lf-01, then independently harvested credentials, pivoted through MinIO and Nacos using default and forged authentication, and deployed ransomware against the MySQL database backing Nacos on ff-db-01. The full chain — initial exploit to ransom note — ran in ~17 minutes across all four Flowforge hosts, with no human input after the initial tasking prompt and clear evidence of real-time self-correction, consistent with machine-driven rather than human-operated execution.
 
 ---
 
