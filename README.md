@@ -87,7 +87,7 @@ Syslog
 | where SyslogMessage has "validate/code"
 | project TimeGenerated, Computer, SyslogMessage
 ```
-`[screenshot here]`
+<img width="946" height="200" alt="image" src="https://github.com/user-attachments/assets/f5456559-dab3-4c13-aa2f-4263ecfbff15" />
 
 ---
 
@@ -106,7 +106,8 @@ LLMAgentLogs_CL
 | where model_response has "CVE"
 | project TimeGenerated, actor, tool_name, model_response, tool_result
 ```
-`[screenshot here]`
+<img width="1044" height="349" alt="image" src="https://github.com/user-attachments/assets/9fc9d787-8c68-497c-a97c-5909ebbb83eb" />
+
 
 ---
 
@@ -126,7 +127,7 @@ Syslog
 | extend src = extract("src=([0-9.]+)", 1, SyslogMessage)
 | project TimeGenerated, Computer, SyslogMessage, src
 ```
-`[screenshot here]`
+<img width="953" height="202" alt="image" src="https://github.com/user-attachments/assets/402eb6e9-03fe-44f5-86c4-9d726b1b0611" />
 
 ---
 
@@ -144,11 +145,12 @@ Syslog
 ```kql
 LinuxProcess_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where DvcHostname =~ "ff-lf-01" and TargetProcessName =~ "python3.11"
+| where DvcHostname =~ "ff-lf-01" and TargetProcessName =~ "python3.11" and RunId =~ "jp-46-20260730"
 | project TimeGenerated, TargetProcessName, TargetProcessCommandLine, ActingProcessName, ActingProcessCommandLine, ActingProcessId, TargetProcessId, ActorUsername
 | order by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="981" height="119" alt="image" src="https://github.com/user-attachments/assets/58dbcee0-91df-45c9-83ad-5ddc27ff96e6" />
+
 
 ---
 
@@ -166,7 +168,8 @@ LinuxProcess_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
 | summarize Total = count(), NonEmptySHA256 = countif(isnotempty(TargetProcessSHA256)) by DvcHostname
 ```
-`[screenshot here]`
+<img width="340" height="149" alt="image" src="https://github.com/user-attachments/assets/929beef0-4535-4b5b-8dfa-ba97f66d2e84" />
+
 
 ---
 
@@ -182,11 +185,12 @@ LinuxProcess_CL
 ```kql
 LinuxNetwork_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where DvcHostname == "ff-lf-01" and DstIpAddr == "45.131.66.106"
+| where DvcHostname == "ff-lf-01" and DstPortNumber == 4444 and RunId =~ "jp-46-20260730"
 | project TimeGenerated, ActingProcessName, SrcPortNumber, DstIpAddr, DstPortNumber
 | order by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="740" height="63" alt="image" src="https://github.com/user-attachments/assets/422beedf-c459-4150-a23f-e767220c7efc" />
+
 
 ---
 
@@ -200,19 +204,23 @@ LinuxNetwork_CL
 
 **KQL Queries Used:**
 ```kql
-LinuxAudit_CL
-| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where Computer == "ff-lf-01"
-| where AuditMsg contains "cron" or EventOriginalMessage contains "45.131"
-| project TimeGenerated, AuditMsg, EventOriginalMessage
-
 LinuxSystem_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
 | where Facility =~ "cron"
 | where EventOriginalMessage has "45.131" or EventOriginalMessage has "beacon"
 | project TimeGenerated, Computer, EventOriginalMessage
+
+LinuxAudit_CL
+| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
+| where Computer == "ff-lf-01"
+| where AuditMsg contains "cron" or EventOriginalMessage contains "45.131"
+| project TimeGenerated, AuditMsg, EventOriginalMessage
 ```
-`[screenshot here]`
+<img width="684" height="204" alt="image" src="https://github.com/user-attachments/assets/112bf6a5-85e5-46b6-83e3-4d9561c17c67" />
+
+<img width="520" height="207" alt="image" src="https://github.com/user-attachments/assets/b5494909-f5a5-49dc-88c0-d55aadf3f9cb" />
+
+
 
 ---
 
@@ -235,7 +243,8 @@ LinuxProcess_CL
 | where TargetProcessName =~ "pg_dump"
 | summarize count() by TargetUsername, DvcHostname, TargetProcessCommandLine
 ```
-`[screenshot here]`
+<img width="997" height="90" alt="image" src="https://github.com/user-attachments/assets/451fc908-30e0-439f-bcc2-011e2fadb063" />
+
 
 ---
 
@@ -254,49 +263,12 @@ LLMAgentLogs_CL
 | where tool_name == "classify secrets"
 | project TimeGenerated, model_response, tool_result
 ```
-`[screenshot here]`
+<img width="1043" height="304" alt="image" src="https://github.com/user-attachments/assets/32bc9ef8-d696-4f16-ba4e-8ae6cd6c9b3a" />
+
 
 ---
 
-### 🔓 Flag 10 & 11 – The Way In, and What It Took
-
-**Objective:** Identify which probed service let the agent in without an exploit, and what it retrieved.
-
-**Identified Activity:** MinIO (`10.4.0.20:9000`), factory-default credentials `minioadmin:minioadmin` — first try, no exploit. Retrieved object: bucket `terraform-state`, object `credentials.json`.
-
-**Why It Matters:** Of the three services swept (MinIO, MySQL, Nacos), only MinIO's unrotated default credentials granted immediate access; the `terraform-state` bucket is exactly where provisioned cloud credentials tend to leak.
-
-**KQL Query Used:**
-```kql
-LLMAgentLogs_CL
-| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where tool_name in ("probe minio default creds", "adjust parser, refetch")
-| project TimeGenerated, tool_name, model_response, tool_result
-```
-`[screenshot here]`
-
----
-
-### 🔁 Flag 12 – The Surprise, and the Fix
-
-**Objective:** Identify the unexpected format encountered and the agent's recovery action.
-
-**Identified Activity:** Expected `JSON`, received `XML` from MinIO. Recovery: adjusted its parser and retried the object fetch — succeeded immediately.
-
-**Why It Matters:** A real-time, self-diagnosed recovery from an unexpected response format, completed within the same tool-call cycle — the "organic mess" of a genuinely autonomous agent rather than a scripted playbook.
-
-**KQL Query Used:**
-```kql
-LLMAgentLogs_CL
-| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where model_response has "XML" or model_response has "JSON"
-| project TimeGenerated, tool_name, model_response, tool_result
-```
-`[screenshot here]`
-
----
-
-### 🧭 Flag 13 & 14 – The Second Interpreter, and the Sweep
+### 🧭 Flag 10 & 11 – The Second Interpreter, and the Sweep
 
 **Objective:** Identify the PID of the second interpreter and the exact hosts/ports it swept.
 
@@ -317,31 +289,64 @@ LinuxNetwork_CL
 | project TimeGenerated, ActingProcessName, SrcPortNumber, DstIpAddr, DstPortNumber
 | order by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="988" height="148" alt="image" src="https://github.com/user-attachments/assets/5cc4a878-f6f4-4f10-9dca-6f9fa60aa649" />
+
+<img width="596" height="545" alt="image" src="https://github.com/user-attachments/assets/1d9a08f0-2317-4c06-be2f-f9add5ea8d68" />
 
 ---
 
-### 🐳 Flag 15 – The Container-Escape Probe
 
-**Objective:** Determine which containers the Docker-socket probe saw, and whether the data source can even answer that.
+### 🔓 Flag 12 & 13 – The Way In, and What It Took
 
-**Finding:** The container runtime recorded only the request — `docker.sock query` (`GET /containers/json via /var/run/docker.sock src=langflow-rce`). **The answer cannot be established.** `ContainerId`, `ImageName`, `ImageDigest`, and `ImageRef` are empty on every row of `LinuxContainer_CL`, across every host, with no exception — a structural gap in the log source, not an absence of activity.
+**Objective:** Identify which probed service let the agent in without an exploit, and what it retrieved.
 
-**Why It Matters:** This is the flag the case brief warned would be "genuinely unanswerable from the current telemetry" — naming the gap is the correct answer, not guessing container names.
+**Identified Activity:** MinIO (`10.4.0.20:9000`), factory-default credentials `minioadmin:minioadmin` — first try, no exploit. Retrieved object: bucket `terraform-state`, object `credentials.json`.
+
+**Why It Matters:** Of the three services swept (MinIO, MySQL, Nacos), only MinIO's unrotated default credentials granted immediate access; the `terraform-state` bucket is exactly where provisioned cloud credentials tend to leak.
 
 **KQL Query Used:**
 ```kql
-LinuxContainer_CL
+
+LLMAgentLogs_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| project ContainerId, ImageName, ImageRef
-| where isnotempty(ContainerId)
-// returns zero rows, confirming the field is never populated
+| where RunId =~ "jp-46-20260730" 
+| where model_response has "minioadmin" or model_response has "MinIO"
+| project TimeGenerated, model_response
+
+Syslog
+| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
+| where RunId_CF =~ "jp-46-20260730"
+| where Computer =~ "ff-minio-01" and SyslogMessage has "GetObject"
+| project TimeGenerated, SyslogMessage
 ```
-`[screenshot here]`
+<img width="1005" height="91" alt="image" src="https://github.com/user-attachments/assets/c32a097d-fa99-4382-8ab0-bf3ee8b6bb77" />
+
+<img width="864" height="621" alt="image" src="https://github.com/user-attachments/assets/67eda9ff-79e8-499e-a7e4-016e79afd16a" />
+
 
 ---
 
-### 🔐 Flag 16 & 17 – The Rejected Attempt, and the Corrective
+### 🔁 Flag 14 – The Surprise, and the Fix
+
+**Objective:** Identify the unexpected format encountered and the agent's recovery action.
+
+**Identified Activity:** Expected `JSON`, received `XML` from MinIO. Recovery: adjusted its parser and retried the object fetch — succeeded immediately.
+
+**Why It Matters:** A real-time, self-diagnosed recovery from an unexpected response format, completed within the same tool-call cycle — the "organic mess" of a genuinely autonomous agent rather than a scripted playbook.
+
+**KQL Query Used:**
+```kql
+LLMAgentLogs_CL
+| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
+| where model_response has "XML" or model_response has "JSON"
+| project TimeGenerated, tool_name, model_response, tool_result
+```
+<img width="1019" height="96" alt="image" src="https://github.com/user-attachments/assets/d39707cc-152c-4566-8a88-b3b773a15956" />
+
+
+---
+
+### 🔐 Flag 15 & 16 – The Rejected Attempt, and the Corrective
 
 **Objective:** Give the time and reason for the failed Nacos privilege-escalation attempt, then prove the successful retry independently from local telemetry.
 
@@ -355,9 +360,9 @@ LinuxContainer_CL
 ```kql
 Syslog
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where Computer == "ff-nacos-01"
+| where RunId_CF =~ "jp-46-20260730"
+| where Computer =~ "ff-nacos-01" and SyslogMessage has "403"
 | project TimeGenerated, SyslogMessage
-| order by TimeGenerated asc
 
 LinuxAudit_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
@@ -365,11 +370,13 @@ LinuxAudit_CL
 | project TimeGenerated, AuditMsg, Pid, Uid, TargetUsername, EventOriginalMessage
 | order by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="657" height="69" alt="image" src="https://github.com/user-attachments/assets/944255b9-77e2-4802-ad76-5c0da82cf373" />
+
+<img width="1047" height="71" alt="image" src="https://github.com/user-attachments/assets/211be5d9-d293-470e-9532-b098488b795c" />
 
 ---
 
-### 🗝️ Flag 18 – The Account It Left Behind
+### 🗝️ Flag 17 – The Account It Left Behind
 
 **Objective:** Name the backdoor account.
 
@@ -379,12 +386,35 @@ LinuxAudit_CL
 
 **KQL Query Used:**
 ```kql
-Syslog
+LinuxAudit_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where Computer =~ "ff-nacos-01" and SyslogMessage has "adduser"
-| project TimeGenerated, SyslogMessage
+| where RunId =~ "jp-46-20260730"
+| where AuditType =~ "ADD_USER"
+| project EventOriginalMessage
 ```
-`[screenshot here]`
+<img width="1039" height="116" alt="image" src="https://github.com/user-attachments/assets/a7360cd7-7d3e-438c-a593-749aef8c3b75" />
+
+
+---
+
+### 🐳 Flag 18 – The Container-Escape Probe
+
+**Objective:** Determine which containers the Docker-socket probe saw, and whether the data source can even answer that.
+
+**Finding:** The container runtime recorded only the request — `docker.sock query` (`GET /containers/json via /var/run/docker.sock src=langflow-rce`). **The answer cannot be established.** `ContainerId`, `ImageName`, `ImageDigest`, and `ImageRef` are empty on every row of `LinuxContainer_CL`, across every host, with no exception — a structural gap in the log source, not an absence of activity.
+
+**Why It Matters:** This is the flag the case brief warned would be "genuinely unanswerable from the current telemetry" — naming the gap is the correct answer, not guessing container names.
+
+**KQL Query Used:**
+```kql
+LinuxContainer_CL
+| where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
+| project ContainerId, ImageName, ImageRef
+| where isnotempty(ContainerId)
+| where RunId =~ "jp-46-20260730" 
+// returns zero rows, confirming the field is never populated
+```
+<img width="932" height="124" alt="image" src="https://github.com/user-attachments/assets/2f80c693-aa81-4615-b482-70c1f135fd06" />
 
 ---
 
@@ -405,11 +435,12 @@ Syslog
 ```kql
 Syslog
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
+| where RunId_CF =~ "jp-46-20260730"
 | where Computer =~ "ff-db-01" and (SyslogMessage has "AES_ENCRYPT" or SyslogMessage has "DROP TABLE")
 | project TimeGenerated, SyslogMessage
-| order by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="714" height="117" alt="image" src="https://github.com/user-attachments/assets/7114098e-3ae0-463e-ba90-f6e3e34a65d2" />
+
 
 ---
 
@@ -430,11 +461,13 @@ Pay to 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')
 ```kql
 Syslog
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where Computer =~ "ff-db-01" and (SyslogMessage has "RANSOM" or SyslogMessage has "CREATE TABLE" or SyslogMessage has "WpEZ")
+| where RunId_CF =~ "jp-46-20260730"
+| where Computer =~ "ff-db-01" and SyslogMessage has "README_RANSOM"
 | project TimeGenerated, SyslogMessage
 | order by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="1043" height="142" alt="image" src="https://github.com/user-attachments/assets/e6173e95-d222-4392-82d6-ff58f8d850dd" />
+
 
 ---
 
@@ -451,9 +484,11 @@ Syslog
 ```kql
 LLMAgentLogs_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
+| where RunId =~ "jp-46-20260730"
 | summarize count() by actor, session_id
+| sort by count_ desc
 ```
-`[screenshot here]`
+<img width="341" height="181" alt="image" src="https://github.com/user-attachments/assets/869ef17b-93be-4c65-a04e-598f8721048e" />
 
 ---
 
@@ -471,11 +506,12 @@ LLMAgentLogs_CL
 ```kql
 LLMAgentLogs_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where actor == "jadepuffer-agent"
-| project TimeGenerated, tool_name, model_response, tool_result
-| order by TimeGenerated asc
+| where RunId =~ "jp-46-20260730"
+| where session_id == "jp-7f3c9a21"
+| summarize count() by actor
 ```
-`[screenshot here]`
+<img width="223" height="67" alt="image" src="https://github.com/user-attachments/assets/2a92c629-8958-48a8-9964-28148813e67c" />
+
 
 ---
 
@@ -494,25 +530,31 @@ LLMAgentLogs_CL
 // 23
 LinuxProcess_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where DvcHostname == "ff-lf-01" and TargetProcessName =~ "python3.11"
+| where RunId =~ "jp-46-20260730"
+| where DvcHostname =~ "ff-lf-01" and TargetProcessName =~ "python3.11"
 | summarize count() by ActingProcessName
 
 // 24
 LinuxNetwork_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where DvcHostname == "ff-lf-01"
-| summarize count() by DstIpAddr, DstHostname, DstPortNumber, ActingProcessName
-| order by DstPortNumber asc
+| where RunId =~ "jp-46-20260730"
+| where DvcHostname =~ "ff-lf-01" and DstIpAddr !startswith "10."
+| summarize count() by DstIpAddr, DstPortNumber
 
 // 25
 LinuxProcess_CL
 | where TimeGenerated between (datetime(2026-07-29) .. datetime(2026-08-18))
-| where DvcHostname == "ff-lf-01" and TargetProcessName =~ "python3.11"
-| extend tod = format_datetime(TimeGenerated, "HH:mm:ss")
-| summarize by tod, ActingProcessName
-| order by tod asc
+|  where RunId =~ "jp-46-20260730"
+| where DvcHostname =~ "ff-lf-01" and TargetProcessName =~ "python3.11"
+| project TimeGenerated, TargetProcessId, ActingProcessName
+| sort by TimeGenerated asc
 ```
-`[screenshot here]`
+<img width="229" height="107" alt="image" src="https://github.com/user-attachments/assets/a3024731-3a48-4df2-9ff4-0846693edf23" />
+
+<img width="370" height="227" alt="image" src="https://github.com/user-attachments/assets/c91ce82d-5cb7-412c-8775-30272db514a5" />
+
+<img width="480" height="127" alt="image" src="https://github.com/user-attachments/assets/5176726f-e290-45fe-9112-976dfef05dce" />
+
 
 ---
 
